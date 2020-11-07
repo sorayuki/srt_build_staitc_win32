@@ -83,6 +83,7 @@ $vsdir = (Get-VSSetupInstance -All | Select-VSSetupInstance -Latest).Installatio
 # build pthreads
 foreach ($bits in $bits_list) {
     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
+    Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("checkout", ".")
     if ($bits -eq "win32") { $varbits = "x86" }
     if ($bits -eq "x64") { $varbits = "x64" }
 
@@ -110,6 +111,7 @@ foreach ($bits in $bits_list) {
 foreach ($bits in $bits_list) {
     foreach ($buildtype in $buildtypes) {
         Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
+        Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("checkout", ".")
         [File]::WriteAllLines([string]"mbedtls/build.bat", [string[]]("cmake -S . -B " + "build" + " -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DENABLE_SHARED=OFF -DENABLE_STATIC=ON"))
         [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --build build --config " + $buildtype))
         [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --install build --config " + $buildtype))
@@ -121,7 +123,8 @@ foreach ($bits in $bits_list) {
 foreach ($bits in $bits_list) {
     foreach ($buildtype in $buildtypes) {
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
-        $finddir = " -DCMAKE_FIND_ROOT=../dist/" + $bits + "/" + $buildtype
+        $finddir = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype
+        $finddir = " -DPTHREAD_PREFIX=../dist/" + $bits + "/" + $buildtype
 
         $cmlines = [File]::ReadAllLines([string]"srt/CMakeLists.txt")
         $cm_new = New-Object List[string]
@@ -129,7 +132,15 @@ foreach ($bits in $bits_list) {
             if ($l.Contains("foreach(COMPAT 1 2)") -eq $true) {
                 $cm_new.Add($l.Replace("foreach(COMPAT 1 2)", "foreach(COMPAT 1 2 3)"))
             } else {
-                $cm_new.Add($l)
+                if ($l.Contains("`${PTHREAD_PACKAGE_INCLUDE_HINT}") -eq $true) {
+                    $cm_new.Add($l.Replace("`${PTHREAD_PACKAGE_INCLUDE_HINT}", "`${PTHREAD_PREFIX}/include `${PTHREAD_PACKAGE_INCLUDE_HINT}"))
+                } else {
+                    if ($l.Contains("`${PTHREAD_PACKAGE_LIB_HINT}") -eq $true) {
+                        $cm_new.Add($l.Replace("`${PTHREAD_PACKAGE_LIB_HINT}", "`${PTHREAD_PREFIX}/lib `${PTHREAD_PACKAGE_LIB_HINT}"))
+                    } else {
+                        $cm_new.Add($l)
+                    }
+                }
             }
         }
         [File]::WriteAllLines([string]"srt/CMakeLists.txt", $cm_new)
