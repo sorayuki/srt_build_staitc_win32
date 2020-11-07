@@ -71,7 +71,7 @@ if ([Directory]::Exists("dist") -eq $true) { [Directory]::Delete("dist", $true) 
 [Directory]::CreateDirectory("dist/win32")
 [Directory]::CreateDirectory("dist/x64")
 
-CloneGitLatestRelease -repo "https://github.com/fwbuilder/pthreads4w.git" -dir "pthreads4w"
+# CloneGitLatestRelease -repo "https://github.com/fwbuilder/pthreads4w.git" -dir "pthreads4w"
 CloneGitLatestRelease -repo "https://github.com/ARMmbed/mbedtls.git" -dir "mbedtls"
 CloneGitLatestRelease -repo "https://github.com/Haivision/srt.git" -dir "srt"
 
@@ -80,32 +80,33 @@ $buildtypes = ("Debug", "Release")
 
 $vsdir = (Get-VSSetupInstance -All | Select-VSSetupInstance -Latest).InstallationPath
 
-# build pthreads
-foreach ($bits in $bits_list) {
-    Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
-    Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("checkout", ".")
-    if ($bits -eq "win32") { $varbits = "x86" }
-    if ($bits -eq "x64") { $varbits = "x64" }
-
-    $pt_header = [File]::ReadAllLines([string]"pthreads4w/_ptw32.h")
-    $pt_newheader = New-Object List[string]
-    foreach($x in $pt_header) {
-        if ($x.Contains("#define") -eq $true) {
-            if ($x.Contains(" __PTW32_VERSION ") -eq $true) {
-                $pt_newheader.Add($x.Replace("__PTW32_VERSION", "PTW32_VERSION"))
-            }
-        }
-        $pt_newheader.Add($x)
-    }
-    [File]::WriteAllLines([string]"pthreads4w/_ptw32.h", $pt_newheader)
-    
-    [File]::WriteAllLines([string]"pthreads4w/build.bat", [string[]]("call `"" + $vsdir + "\VC\Auxiliary\Build\vcvarsall.bat`" " + $varbits))
-    [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake VCE-static-debug VCE-static"))
-    [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake /I install"))
-    [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("robocopy /S ..\PTHREADS-BUILT ..\dist\" + $bits + "\Debug"))
-    [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("robocopy /S ..\PTHREADS-BUILT ..\dist\" + $bits + "\Release"))
-    Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
-}
+# # build pthreads
+# foreach ($bits in $bits_list) {
+#     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
+#     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("checkout", ".")
+#     if ($bits -eq "win32") { $varbits = "x86" }
+#     if ($bits -eq "x64") { $varbits = "x64" }
+# 
+#     $pt_header = [File]::ReadAllLines([string]"pthreads4w/_ptw32.h")
+#     $pt_newheader = New-Object List[string]
+#     foreach($x in $pt_header) {
+#         if ($x.Contains("#define") -eq $true) {
+#             if ($x.Contains(" __PTW32_VERSION ") -eq $true) {
+#                 $pt_newheader.Add($x.Replace("__PTW32_VERSION", "PTW32_VERSION"))
+#             }
+#         }
+#         $pt_newheader.Add($x)
+#     }
+#     [File]::WriteAllLines([string]"pthreads4w/_ptw32.h", $pt_newheader)
+#     
+#     [File]::WriteAllLines([string]"pthreads4w/build.bat", [string[]]("call `"" + $vsdir + "\VC\Auxiliary\Build\vcvarsall.bat`" " + $varbits))
+#     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake VCE-static-debug VCE-static"))
+#     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake /I install"))
+#     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("robocopy /S ..\PTHREADS-BUILT ..\dist\" + $bits + "\Debug"))
+#     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("robocopy /S ..\PTHREADS-BUILT ..\dist\" + $bits + "\Release"))
+#     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
+# }
+# 
 
 # build mbedtls
 foreach ($bits in $bits_list) {
@@ -123,8 +124,8 @@ foreach ($bits in $bits_list) {
 foreach ($bits in $bits_list) {
     foreach ($buildtype in $buildtypes) {
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
-        $finddir = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype
-        $finddir = " -DPTHREAD_PREFIX=../dist/" + $bits + "/" + $buildtype
+        $extra_param = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype
+        $extra_param = $extra_param + " -DENABLE_STDCXX_SYNC=ON"
 
         $cmlines = [File]::ReadAllLines([string]"srt/CMakeLists.txt")
         $cm_new = New-Object List[string]
@@ -145,7 +146,7 @@ foreach ($bits in $bits_list) {
         }
         [File]::WriteAllLines([string]"srt/CMakeLists.txt", $cm_new)
 
-        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $finddir))
+        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $extra_param))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
