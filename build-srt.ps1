@@ -83,6 +83,18 @@ foreach ($bits in $bits_list) {
     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
     if ($bits -eq "win32") { $varbits = "x86" }
     if ($bits -eq "x64") { $varbits = "x64" }
+
+    $pt_header = [File]::ReadAllLines([string]"pthreads4w/pthread.h")
+    $pt_newheader = New-Object List[string]
+    foreach($x in $pt_header) {
+        if ($x.Contains("#define") -eq $true) {
+            if ($x.Contains(" __PTW32_VERSION ") -eq $true) {
+                $pt_newheader.Add($x.Replace("__PTW32_VERSION", "PTW32_VERSION"))
+            }
+        }
+        $pt_newheader.Add($x)
+    }
+    [File]::WriteAllLines([string]"pthreads4w/pthread.h", $pt_newheader)
     
     [File]::WriteAllLines([string]"pthreads4w/build.bat", [string[]]("call `"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat`" " + $varbits))
     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake VCE-static-debug VCE-static"))
