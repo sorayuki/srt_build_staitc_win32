@@ -76,6 +76,7 @@ CloneGitLatestRelease -repo "https://github.com/ARMmbed/mbedtls.git" -dir "mbedt
 CloneGitLatestRelease -repo "https://github.com/Haivision/srt.git" -dir "srt"
 
 $bits_list = ("win32", "x64")
+$crt_link_list = ("DLL", "")
 $buildtypes = ("Debug", "Release")
 
 $vsdir = (Get-VSSetupInstance -All | Select-VSSetupInstance -Latest).InstallationPath
@@ -108,25 +109,34 @@ $vsdir = (Get-VSSetupInstance -All | Select-VSSetupInstance -Latest).Installatio
 # }
 # 
 
-foreach ($bits in $bits_list) {
-    foreach ($buildtype in $buildtypes) {
-        # build mbedtls
-        Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
-        Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("checkout", ".")
-        [File]::WriteAllLines([string]"mbedtls/build.bat", [string[]]("cmake -S . -B " + "build" + " -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_PROGRAMS=ON -DENABLE_TESTING=OFF"))
-        [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --build build --config " + $buildtype))
-        [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --install build --config " + $buildtype))
-        Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
+foreach($crt_link in $crt_link_list) {
+    foreach ($bits in $bits_list) {
+        foreach ($buildtype in $buildtypes) {
+            if ($crt_link -eq "DLL") {
+                $instdir = "../dist/" + $bits + "/" + $buildtype + "/shared_crt"
+            } else {
+                if ($crt_link -eq "") {
+                    $instdir = "../dist/" + $bits + "/" + $buildtype + "/static_crt"
+                }
+            }
+            
+            # build mbedtls
+            Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
+            Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("checkout", ".")
+            [File]::WriteAllLines([string]"mbedtls/build.bat", [string[]]("cmake -S . -B " + "build" + " -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>" + $crt_link + "`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + $instdir + " -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF"))
+            [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --build build --config " + $buildtype))
+            [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --install build --config " + $buildtype))
+            Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
 
-
-        # build srt
-        Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
-        $extra_param = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype
-        $extra_param = $extra_param + " -DENABLE_STDCXX_SYNC=ON"
-        
-        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $extra_param))
-        [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype))
-        [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
-        Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
+            # build srt
+            Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
+            $extra_param = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype
+            $extra_param = $extra_param + " -DENABLE_STDCXX_SYNC=ON"
+            
+            [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>" + $crt_link + "`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + $instdir + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $extra_param))
+            [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype))
+            [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
+            Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
+        }
     }
 }
