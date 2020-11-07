@@ -86,7 +86,7 @@ foreach ($bits in $bits_list) {
     if ($bits -eq "win32") { $varbits = "x86" }
     if ($bits -eq "x64") { $varbits = "x64" }
 
-    $pt_header = [File]::ReadAllLines([string]"pthreads4w/pthread.h")
+    $pt_header = [File]::ReadAllLines([string]"pthreads4w/_ptw32.h")
     $pt_newheader = New-Object List[string]
     foreach($x in $pt_header) {
         if ($x.Contains("#define") -eq $true) {
@@ -96,7 +96,7 @@ foreach ($bits in $bits_list) {
         }
         $pt_newheader.Add($x)
     }
-    [File]::WriteAllLines([string]"pthreads4w/pthread.h", $pt_newheader)
+    [File]::WriteAllLines([string]"pthreads4w/_ptw32.h", $pt_newheader)
     
     [File]::WriteAllLines([string]"pthreads4w/build.bat", [string[]]("call `"" + $vsdir + "\VC\Auxiliary\Build\vcvarsall.bat`" " + $varbits))
     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake VCE-static-debug VCE-static"))
@@ -126,9 +126,8 @@ foreach ($bits in $bits_list) {
         if ($buildtype -eq "Debug") {
             $pthreaddir = $pthreaddir + "d"
         }
-        $pthreaddir = $pthreaddir + ".lib "
 
-        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_CPP_FLAGS=`"-DPTW32_VERSION=1`" -DCMAKE_C_FLAGS=`"-DPTW32_VERSION=1`" -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $mbedtlsdir + $pthreaddir))
+        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $mbedtlsdir + $pthreaddir))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
