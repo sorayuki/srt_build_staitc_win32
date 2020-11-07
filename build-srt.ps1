@@ -78,6 +78,8 @@ CloneGitLatestRelease -repo "https://github.com/Haivision/srt.git" -dir "srt"
 $bits_list = ("win32", "x64")
 $buildtypes = ("Debug", "Release")
 
+$vsdir = (Get-VSSetupInstance -All | Select-VSSetupInstance -Latest).InstallationPath
+
 # build pthreads
 foreach ($bits in $bits_list) {
     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
@@ -96,7 +98,7 @@ foreach ($bits in $bits_list) {
     }
     [File]::WriteAllLines([string]"pthreads4w/pthread.h", $pt_newheader)
     
-    [File]::WriteAllLines([string]"pthreads4w/build.bat", [string[]]("call `"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat`" " + $varbits))
+    [File]::WriteAllLines([string]"pthreads4w/build.bat", [string[]]("call `"" + $vsdir + "\VC\Auxiliary\Build\vcvarsall.bat`" " + $varbits))
     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake VCE-static-debug VCE-static"))
     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake /I install"))
     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
