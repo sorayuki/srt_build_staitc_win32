@@ -108,25 +108,22 @@ $vsdir = (Get-VSSetupInstance -All | Select-VSSetupInstance -Latest).Installatio
 # }
 # 
 
-# build mbedtls
 foreach ($bits in $bits_list) {
     foreach ($buildtype in $buildtypes) {
+        # build mbedtls
         Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
         Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("checkout", ".")
-        [File]::WriteAllLines([string]"mbedtls/build.bat", [string[]]("cmake -S . -B " + "build" + " -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DENABLE_SHARED=OFF -DENABLE_STATIC=ON"))
+        [File]::WriteAllLines([string]"mbedtls/build.bat", [string[]]("cmake -S . -B " + "build" + " -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DENABLE_SHARED=OFF -DENABLE_STATIC=ON"))
         [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --build build --config " + $buildtype))
         [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --install build --config " + $buildtype))
         Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
-    }
-}
 
-# build srt
-foreach ($bits in $bits_list) {
-    foreach ($buildtype in $buildtypes) {
+
+        # build srt
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
         $extra_param = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype
         $extra_param = $extra_param + " -DENABLE_STDCXX_SYNC=ON"
-
+        
         $cmlines = [File]::ReadAllLines([string]"srt/CMakeLists.txt")
         $cm_new = New-Object List[string]
         foreach($l in $cmlines) {
@@ -145,8 +142,8 @@ foreach ($bits in $bits_list) {
             }
         }
         [File]::WriteAllLines([string]"srt/CMakeLists.txt", $cm_new)
-
-        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $extra_param))
+        
+        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $extra_param))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
