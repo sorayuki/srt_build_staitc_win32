@@ -101,8 +101,9 @@ foreach ($bits in $bits_list) {
     [File]::WriteAllLines([string]"pthreads4w/build.bat", [string[]]("call `"" + $vsdir + "\VC\Auxiliary\Build\vcvarsall.bat`" " + $varbits))
     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake VCE-static-debug VCE-static"))
     [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("nmake /I install"))
+    [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("robocopy /S ..\PTHREADS-BUILT ..\dist\" + $bits + "\Debug"))
+    [File]::AppendAllLines([string]"pthreads4w/build.bat", [string[]]("robocopy /S ..\PTHREADS-BUILT ..\dist\" + $bits + "\Release"))
     Start-Process -WorkingDirectory "./pthreads4w" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
-    [Directory]::Move("PTHREADS-BUILT", "dist/" + $bits + "/pthreads")
 }
 
 # build mbedtls
@@ -120,14 +121,20 @@ foreach ($bits in $bits_list) {
 foreach ($bits in $bits_list) {
     foreach ($buildtype in $buildtypes) {
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clean", "-xfd")
-        $mbedtlsdir = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype + "/mbedtls "
-        $pthreaddir = " -DPTHREAD_INCLUDE_DIR=../dist/" + $bits + "/pthreads/include "
-        $pthreaddir = $pthreaddir + " -DPTHREAD_LIBRARY=../dist/" + $bits + "/pthreads/lib/libpthreadVCE3"
-        if ($buildtype -eq "Debug") {
-            $pthreaddir = $pthreaddir + "d"
-        }
+        $finddir = " -DCMAKE_FIND_ROOT=../dist/" + $bits + "/" + $buildtype
 
-        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $mbedtlsdir + $pthreaddir))
+        $cmlines = [File]::ReadAllLines([string]"srt/CMakeLists.txt")
+        $cm_new = New-Object List[string]
+        foreach($l in $cmlines) {
+            if ($l.Contains("foreach(COMPAT 1 2)") -eq $true) {
+                $cm_new.Add($l.Replace("foreach(COMPAT 1 2)", "foreach(COMPAT 1 2 3)"))
+            } else {
+                $cm_new.Add($l)
+            }
+        }
+        [File]::WriteAllLines([string]"srt/CMakeLists.txt", $cm_new)
+
+        [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + "../dist/" + $bits + "/" + $buildtype + " -DENABLE_APPS=ON -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $finddir))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype))
         [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
         Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
