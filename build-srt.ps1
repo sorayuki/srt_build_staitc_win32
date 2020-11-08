@@ -114,10 +114,8 @@ foreach($is_static_crt in $static_crt_list) {
         foreach ($buildtype in $buildtypes) {
             if ($is_static_crt -eq $false) {
                 $instdir = "../dist/" + $bits + "/" + $buildtype + "/shared_crt"
-                $shared_or_static = " -DENABLE_SHARED=ON -DENABLE_STATIC=OFF "
             } else {
                 $instdir = "../dist/" + $bits + "/" + $buildtype + "/static_crt"
-                $shared_or_static = " -DENABLE_SHARED=OFF -DENABLE_STATIC=ON "
             }
 
             # build mbedtls
@@ -133,7 +131,7 @@ foreach($is_static_crt in $static_crt_list) {
             $extra_param = " -DMBEDTLS_PREFIX=../dist/" + $bits + "/" + $buildtype
             $extra_param = $extra_param + " -DENABLE_STDCXX_SYNC=ON"
             
-            [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>" + $crt_link + "`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + $instdir + " -DENABLE_APPS=ON " + $shared_or_static + " -DUSE_ENCLIB=mbedtls" + $extra_param))
+            [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>" + $crt_link + "`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + $instdir + " -DENABLE_APPS=ON -DENABLE_SHARED=ON -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $extra_param))
             [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype))
             [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
             Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
