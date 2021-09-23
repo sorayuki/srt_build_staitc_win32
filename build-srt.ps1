@@ -27,7 +27,7 @@ function GetProcessOutput {
     $proc.Dispose()
     return $stdout
 }
-$regex = New-Object Regex("refs/tags/(v(\d+)\.(\d+)\.(\d+))")
+$regex = New-Object Regex("refs/tags/(v(\d+)\.(\d+)\.(\d+))$")
 
 function GetGitLatestRelease {
     param (
