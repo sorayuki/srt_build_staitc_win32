@@ -114,8 +114,10 @@ foreach($is_static_crt in $static_crt_list) {
         foreach ($buildtype in $buildtypes) {
             if ($is_static_crt -eq $false) {
                 $instdir = "../dist/" + $bits + "/" + $buildtype + "/shared_crt"
+                $crt_link = "DLL"
             } else {
                 $instdir = "../dist/" + $bits + "/" + $buildtype + "/static_crt"
+                $crt_link = ""
             }
 
             # build mbedtls
