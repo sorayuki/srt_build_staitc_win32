@@ -62,7 +62,7 @@ function CloneGitLatestRelease {
 
     if ([Directory]::Exists($dir) -eq $false) {
         $release_tag = (GetGitLatestRelease -repo $repo)
-        Start-Process -WorkingDirectory "." -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clone", "--recurse-submodules", "--depth=1", "-b", $release_tag, $repo, $dir)
+        Start-Process -WorkingDirectory "." -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clone", "--depth=1", "--recurse-submodules", "--shallow-submodules", "-b", $release_tag, $repo, $dir)
     }
 }
 
@@ -126,6 +126,7 @@ foreach($is_static_crt in $static_crt_list) {
             [File]::WriteAllLines([string]"mbedtls/build.bat", [string[]]("cmake -S . -B " + "build" + " -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>" + $crt_link + "`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + $instdir + " -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF"))
             [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --build build --config " + $buildtype + " -- -m"))
             [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("cmake --install build --config " + $buildtype))
+            [File]::AppendAllLines([string]"mbedtls/build.bat", [string[]]("exit"))
             Start-Process -WorkingDirectory "./mbedtls" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
 
             # build srt
@@ -136,6 +137,7 @@ foreach($is_static_crt in $static_crt_list) {
             [File]::WriteAllLines([string]"srt/build.bat", [string[]]("cmake -S . -B " + "build -A " + $bits + " -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=`"MultiThreaded$<$<CONFIG:Debug>:Debug>" + $crt_link + "`" -DCMAKE_BUILD_TYPE=" + $buildtype + " -DCMAKE_INSTALL_PREFIX=" + $instdir + " -DENABLE_APPS=ON -DENABLE_SHARED=ON -DENABLE_STATIC=ON -DUSE_ENCLIB=mbedtls" + $extra_param))
             [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --build build --config " + $buildtype + " -- -m"))
             [File]::AppendAllLines([string]"srt/build.bat", [string[]]("cmake --install build --config " + $buildtype))
+            [File]::AppendAllLines([string]"srt/build.bat", [string[]]("exit"))
             Start-Process -WorkingDirectory "./srt" -Wait -NoNewWindow -FilePath "cmd.exe" -ArgumentList ("/c", "build.bat")
         }
     }
