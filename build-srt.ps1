@@ -62,7 +62,7 @@ function CloneGitLatestRelease {
 
     if ([Directory]::Exists($dir) -eq $false) {
         $release_tag = (GetGitLatestRelease -repo $repo)
-        Start-Process -WorkingDirectory "." -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clone", "--depth=1", "-b", $release_tag, $repo, $dir)
+        Start-Process -WorkingDirectory "." -Wait -NoNewWindow -FilePath "git.exe" -ArgumentList ("clone", "--depth=1", "--recursive", "-b", $release_tag, $repo, $dir)
     }
 }
 
